@@ -2,61 +2,39 @@ using UnityEngine;
 
 public class DoorRotate : MonoBehaviour
 {
-    public enum DoorSide
-    {
-        Left,
-        Right
-    }
-
-    [Header("Door Settings")]
-    public DoorSide doorSide;   // elegir en el inspector
+    public Transform door;
     public float rotationAmount = 90f;
     public float speed = 2f;
 
-    private bool playerNear = false;
     private bool isOpen = false;
 
     private Quaternion closedRotation;
     private Quaternion openRotation;
 
-    private void Start()
+    void Start()
     {
-        closedRotation = transform.rotation;
-
-        float direction = (doorSide == DoorSide.Left) ? -1f : 1f;
-
-        openRotation = Quaternion.Euler(
-            transform.eulerAngles.x,
-            transform.eulerAngles.y + rotationAmount * direction,
-            transform.eulerAngles.z
-        );
+        closedRotation = door.rotation;
+        openRotation = Quaternion.Euler(0, door.eulerAngles.y + rotationAmount, 0);
     }
 
-    private void Update()
+    void Update()
     {
-        if (playerNear && Input.GetKeyDown(KeyCode.E))
-        {
-            isOpen = !isOpen;
-        }
+        Quaternion target = isOpen ? openRotation : closedRotation;
 
-        Quaternion targetRotation = isOpen ? openRotation : closedRotation;
-
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            targetRotation,
+        door.rotation = Quaternion.Slerp(
+            door.rotation,
+            target,
             Time.deltaTime * speed
         );
     }
 
-    private void OnTriggerEnter(Collider other)
+    public void OpenDoor()
     {
-        if (other.CompareTag("Player"))
-            playerNear = true;
+        isOpen = true;
     }
 
-    private void OnTriggerExit(Collider other)
+    public void CloseDoor()
     {
-        if (other.CompareTag("Player"))
-            playerNear = false;
+        isOpen = false;
     }
 }
