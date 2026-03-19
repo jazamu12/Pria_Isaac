@@ -63,5 +63,7 @@ public class DoorPrincipal : MonoBehaviour
     {
         if (other.CompareTag("Player"))
             playerNear = false;
+        if (isOpen)
+            CheckpointManager.Instance.SaveCheckpoint(other.transform.position);
     }
 }
