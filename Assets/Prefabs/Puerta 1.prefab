@@ -67,6 +67,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6507989b65f18ed4680a6b5abc40b88d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoorPrincipal
+  spawnPoint: {fileID: 0}
   doorSide: 1
   rotationAmount: 90
   speed: 0.5
@@ -239,6 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6507989b65f18ed4680a6b5abc40b88d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoorPrincipal
+  spawnPoint: {fileID: 0}
   doorSide: 0
   rotationAmount: 90
   speed: 0.5

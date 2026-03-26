@@ -7,7 +7,9 @@ public class DoorPrincipal : MonoBehaviour
         Left,
         Right
     }
-
+    [Header("Checkpoint Settings")]
+    public Transform spawnPoint;
+    
     [Header("Door Settings")]
     public DoorSide doorSide;
     public float rotationAmount = 90f;
@@ -56,14 +58,22 @@ public class DoorPrincipal : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
+        {
             playerNear = true;
+
+            if (spawnPoint != null)
+            {
+                CheckpointManager.Instance.SaveCheckpoint(spawnPoint.position);
+                Debug.Log("Checkpoint guardado correctamente");
+            }
+        }
     }
 
     private void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
+        {
             playerNear = false;
-        if (isOpen)
-            CheckpointManager.Instance.SaveCheckpoint(other.transform.position);
+        }
     }
 }

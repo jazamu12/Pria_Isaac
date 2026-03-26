@@ -29,6 +29,7 @@ public class CheckpointManager : MonoBehaviour
 
     public Vector3 GetCheckpoint(Vector3 fallback)
     {
+        Debug.Log("HasCheckpoint: " + _hasCheckpoint);
         return _hasCheckpoint ? _lastCheckpoint : fallback;
     }
 }

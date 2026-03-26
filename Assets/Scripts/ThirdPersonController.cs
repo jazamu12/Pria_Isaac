@@ -46,6 +46,7 @@ namespace StarterAssets
         public float SpeedChangeRate = 10.0f;
 
         public AudioClip LandingAudioClip;
+        public AudioClip Hurt;
         public AudioClip[] FootstepAudioClips;
         [Range(0, 1)] public float FootstepAudioVolume = 0.5f;
 
@@ -84,6 +85,7 @@ namespace StarterAssets
         private int _animIDFreeFall;
         private int _animIDMotionSpeed;
         private int _animIDCrouch;
+        private AudioSource  _audioSource;
 
 #if ENABLE_INPUT_SYSTEM 
         private PlayerInput _playerInput;
@@ -115,7 +117,13 @@ namespace StarterAssets
         }
 
         private void Start()
-        {
+        {    
+            _audioSource = GetComponent<AudioSource>();
+            if (_audioSource == null)
+            {
+                _audioSource = gameObject.AddComponent<AudioSource>();
+            }
+
             // Health
             health = maxHealth;
             if (healthSlider != null)
@@ -178,10 +186,26 @@ namespace StarterAssets
         }
 
         // ── HEALTH ────────────────────────────────────────────────────────────
+        public void Respawn(Vector3 position)
+        {
+            StartCoroutine(DoRespawn(position));
+        }
 
+        private System.Collections.IEnumerator DoRespawn(Vector3 position)
+        {
+            _controller.enabled = false;
+            yield return null;                    // 1 frame de margen
+            transform.position = position;        // funciona porque el CC está desactivado
+            _controller.enabled = true;
+
+            _verticalVelocity = 0f;
+            health = maxHealth;
+            stamina = maxStamina;
+        }
         public void TakeDamage(float amount)
         {
             health = Mathf.Clamp(health - amount, 0f, maxHealth);
+            _audioSource.PlayOneShot(Hurt);
             if (health <= 0f)
                 OnDeath();
         }
@@ -193,8 +217,7 @@ namespace StarterAssets
 
         private void OnDeath()
         {
-            // Aquí puedes añadir lógica de muerte: animación, game over, etc.
-            Debug.Log("El jugador ha muerto.");
+            GameManager.Instance.Death();
         }
 
         private void UpdateHealthUI()
