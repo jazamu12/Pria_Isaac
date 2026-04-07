@@ -27,7 +27,14 @@ namespace StarterAssets
         [SerializeField] private float staminaDrainSprint = 15f;
         [SerializeField] private float staminaRecoverIdle = 25f;
         [SerializeField] private float staminaRecoverWalk = 10f;
+        
+        [Header("Crouch Settings")]
+        [SerializeField] private float standingHeight = 2f;
+        [SerializeField] private float crouchHeight = 1f;
 
+        [SerializeField] private Vector3 standingCenter = new Vector3(0, 1f, 0);
+        [SerializeField] private Vector3 crouchCenter = new Vector3(0, 0.5f, 0);
+        
         [Header("UI")]
         [SerializeField] private Slider staminaSlider;
 
@@ -262,10 +269,21 @@ namespace StarterAssets
             if (Input.GetKeyDown(KeyCode.C))
                 _isCrouching = !_isCrouching;
 
+            // Cambiar tamaño del collider
+            if (_isCrouching)
+            {
+                _controller.height = crouchHeight;
+                _controller.center = crouchCenter;
+            }
+            else
+            {
+                _controller.height = standingHeight;
+                _controller.center = standingCenter;
+            }
+
             if (_hasAnimator)
                 _animator.SetBool(_animIDCrouch, _isCrouching);
         }
-
         // ── GROUNDED ──────────────────────────────────────────────────────────
 
         private void GroundedCheck()
