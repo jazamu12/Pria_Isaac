@@ -15,6 +15,11 @@ namespace StarterAssets
         [Header("Player")]
         public float MoveSpeed = 2.0f;
 
+        [Header("Noise / Sonido")]
+        [SerializeField] private float sprintNoiseRadius = 12f;   // Radio que oyen los enemigos
+        [SerializeField] private float sprintNoiseInterval = 0.4f; // Cada cuántos segundos emite ruido
+        private float _noiseTimer = 0f;
+
         [Header("Health")]
         [SerializeField] private float maxHealth = 100f;
         public float health;
@@ -29,7 +34,7 @@ namespace StarterAssets
         [SerializeField] private float staminaRecoverWalk = 10f;
         
         [Header("Crouch Settings")]
-        [SerializeField] private float standingHeight = 2f;
+        [SerializeField] private float standingHeight = 1.8f;
         [SerializeField] private float crouchHeight = 1f;
 
         [SerializeField] private Vector3 standingCenter = new Vector3(0, 1f, 0);
@@ -379,6 +384,28 @@ namespace StarterAssets
             {
                 _animator.SetFloat(_animIDSpeed, _animationBlend);
                 _animator.SetFloat(_animIDMotionSpeed, inputMagnitude);
+            }
+
+            if (isSprinting)
+            {
+                _noiseTimer -= Time.deltaTime;
+                if (_noiseTimer <= 0f)
+                {
+                    _noiseTimer = sprintNoiseInterval;
+                    EmitNoise(sprintNoiseRadius);
+                }
+            }
+            else
+            {
+                _noiseTimer = 0f; // Resetea para que reaccione inmediatamente al volver a correr
+            }
+        }
+        private void EmitNoise(float radius)
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, radius);
+            foreach (Collider hit in hits)
+            {
+                hit.GetComponent<EnemyAI>()?.HearSound(transform.position);
             }
         }
 
