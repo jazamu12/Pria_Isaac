@@ -3,7 +3,6 @@ using UnityEngine;
 public class KeyManager : MonoBehaviour
 {
     public static KeyManager Instance;
-
     public int _keysCollected = 0;
 
     private void Awake()
@@ -14,6 +13,10 @@ public class KeyManager : MonoBehaviour
     public void AddKey()
     {
         _keysCollected++;
+
+        if (_keysCollected == 1)
+            KeyTutorialUI.Instance.ShowTutorial();
+
         Debug.Log($"Llaves: {_keysCollected}");
     }
 
