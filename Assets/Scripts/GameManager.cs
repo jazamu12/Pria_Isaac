@@ -33,6 +33,8 @@ public class GameManager : MonoBehaviour
     {
         DeathScreen.enabled = true;
         Time.timeScale = 0f;
+        foreach (EnemyAI enemy in FindObjectsOfType<EnemyAI>())
+            enemy.ResetToStart();
     }
 
     private void Retry()

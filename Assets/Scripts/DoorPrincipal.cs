@@ -7,13 +7,17 @@ public class DoorPrincipal : MonoBehaviour
         Left,
         Right
     }
+
     [Header("Checkpoint Settings")]
     public Transform spawnPoint;
-    
+
     [Header("Door Settings")]
     public DoorSide doorSide;
     public float rotationAmount = 90f;
     public float speed = 2f;
+
+    [Header("Lock Settings")]
+    public int keysRequired = 3;
 
     private bool playerNear = false;
     private bool isOpen = false;
@@ -38,7 +42,16 @@ public class DoorPrincipal : MonoBehaviour
     {
         if (playerNear && Input.GetKeyDown(KeyCode.E) && !isOpen)
         {
-            isOpen = true;
+            if (KeyManager.Instance.HasEnoughKeys(keysRequired))
+            {
+                isOpen = true;
+                Debug.Log("Puerta desbloqueada!");
+            }
+            else
+            {
+                int faltan = keysRequired - KeyManager.Instance._keysCollected;
+                Debug.Log($"Faltan {faltan} llaves para abrir esta puerta");
+            }
         }
 
         Quaternion targetRotation = isOpen ? openRotation : closedRotation;

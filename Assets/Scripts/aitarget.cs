@@ -14,12 +14,12 @@ public class EnemyAI : MonoBehaviour
     public float damage = 10f;
 
     [Header("Detección de Sonido")]
-    public float HearingRadius = 15f;         // Radio en el que escucha sonidos
-    public float InvestigateWaitTime = 3f;    // Segundos mirando antes de volver a patrullar
+    public float HearingRadius = 15f;
+    public float InvestigateWaitTime = 3f;
     public bool DrawGizmos = true;
 
     [Header("Memoria")]
-    public float ChaseMemoryTime = 2f;   // Segundos que recuerda al jugador sin verlo
+    public float ChaseMemoryTime = 2f;
     private float _chaseMemoryTimer = 0f;
 
     [Header("Patrulla")]
@@ -34,6 +34,12 @@ public class EnemyAI : MonoBehaviour
     private float m_InvestigateTimer = 0f;
     private bool m_IsLookingAround = false;
     private float m_LookAngle = 0f;
+    public float PatrolSpeed = 3.5f;
+    public float ChaseSpeed = 5f;
+
+    private Vector3 _startPosition;
+    private Quaternion _startRotation;
+    private int _startPatrolPoint;
 
     private enum State { Patrol, Chase, Attack, Investigate }
     private State currentState;
@@ -42,6 +48,10 @@ public class EnemyAI : MonoBehaviour
     {
         m_Agent = GetComponent<NavMeshAgent>();
         m_Animator = GetComponent<Animator>();
+
+        _startPosition = transform.position;
+        _startRotation = transform.rotation;
+        _startPatrolPoint = currentPoint;
 
         currentState = State.Patrol;
         GoToNextPoint();
@@ -63,7 +73,7 @@ public class EnemyAI : MonoBehaviour
                 Chase();
 
                 if (CanSeePlayer())
-                    _chaseMemoryTimer = ChaseMemoryTime;   // Resetea la memoria al verlo
+                    _chaseMemoryTimer = ChaseMemoryTime;
                 else
                     _chaseMemoryTimer -= Time.deltaTime;
 
@@ -71,7 +81,7 @@ public class EnemyAI : MonoBehaviour
                 {
                     currentState = State.Attack;
                 }
-                else if (_chaseMemoryTimer <= 0f)           // Solo suelta si agotó la memoria
+                else if (_chaseMemoryTimer <= 0f)
                 {
                     _chaseMemoryTimer = 0f;
                     currentState = State.Patrol;
@@ -86,28 +96,40 @@ public class EnemyAI : MonoBehaviour
 
             case State.Investigate:
                 Investigate();
-                // Si ve al jugador mientras investiga, lo persigue
                 if (CanSeePlayer())
                     currentState = State.Chase;
                 break;
         }
     }
 
-    // ─────────────────────────────────────────────
-    //  MÉTODO PÚBLICO — llámalo desde otro script
-    //  cuando ocurra un sonido en el mundo
-    // ─────────────────────────────────────────────
-    /// <summary>
-    /// Llama este método cuando ocurra un sonido.
-    /// Si está dentro del radio de escucha, el enemigo irá a investigar.
-    /// </summary>
+    public void ResetToStart()
+    {
+        m_Agent.isStopped = true;
+        m_Agent.ResetPath();
+        m_Agent.Warp(_startPosition);
+
+        transform.position = _startPosition;
+        transform.rotation = _startRotation;
+
+        currentPoint = _startPatrolPoint;
+        _chaseMemoryTimer = 0f;
+        m_InvestigateTimer = 0f;
+        m_IsLookingAround = false;
+        m_LookAngle = 0f;
+
+        m_Animator.SetBool("isRunning", false);
+        m_Animator.SetBool("isAttacking", false);
+
+        currentState = State.Patrol;
+        m_Agent.isStopped = false;
+        GoToNextPoint();
+    }
+
     public void HearSound(Vector3 soundPosition)
     {
         float distToSound = Vector3.Distance(transform.position, soundPosition);
 
         if (distToSound > HearingRadius) return;
-
-        // Solo interrumpe patrulla o investigación previa, no un combate activo
         if (currentState == State.Chase || currentState == State.Attack) return;
 
         m_SoundPosition = soundPosition;
@@ -118,11 +140,9 @@ public class EnemyAI : MonoBehaviour
         Debug.Log($"[EnemyAI] Sonido escuchado a {distToSound:F1}m → Investigando");
     }
 
-    // ─────────────────────────────────────────────
-    //  ESTADOS
-    // ─────────────────────────────────────────────
     void Patrol()
     {
+        m_Agent.speed = PatrolSpeed;
         m_Animator.SetBool("isRunning", false);
         m_Animator.SetBool("isAttacking", false);
 
@@ -132,6 +152,7 @@ public class EnemyAI : MonoBehaviour
 
     void Chase()
     {
+        m_Agent.speed = ChaseSpeed;
         m_Agent.isStopped = false;
         m_Agent.destination = Target.position;
         m_Animator.SetBool("isRunning", true);
@@ -151,7 +172,6 @@ public class EnemyAI : MonoBehaviour
 
         if (!m_IsLookingAround)
         {
-            // Fase 1: Caminar hacia el origen del sonido
             m_Agent.isStopped = false;
             m_Agent.destination = m_SoundPosition;
             m_Animator.SetBool("isRunning", true);
@@ -160,7 +180,6 @@ public class EnemyAI : MonoBehaviour
 
             if (arrivedAtSound)
             {
-                // Llegó → empieza a mirar alrededor
                 m_IsLookingAround = true;
                 m_Agent.isStopped = true;
                 m_Animator.SetBool("isRunning", false);
@@ -170,15 +189,13 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            // Fase 2: Girar 360° lentamente buscando al jugador
-            m_LookAngle += 90f * Time.deltaTime; // 90°/seg → una vuelta cada ~4 seg
+            m_LookAngle += 90f * Time.deltaTime;
             transform.rotation = Quaternion.Euler(0f, m_LookAngle, 0f);
 
             m_InvestigateTimer -= Time.deltaTime;
 
             if (m_InvestigateTimer <= 0f)
             {
-                // No encontró nada → volver a patrullar
                 Debug.Log("[EnemyAI] Nada aquí. Volviendo a patrullar.");
                 m_Agent.isStopped = false;
                 currentState = State.Patrol;
@@ -187,16 +204,12 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // ─────────────────────────────────────────────
-    //  UTILIDADES
-    // ─────────────────────────────────────────────
     bool CanSeePlayer()
     {
-        // Apunta al centro del CharacterController en vez de a los pies
         CharacterController playerCC = Target.GetComponent<CharacterController>();
         Vector3 playerCenter = playerCC != null
             ? Target.position + playerCC.center
-            : Target.position + Vector3.up;          // fallback
+            : Target.position + Vector3.up;
 
         Vector3 directionToPlayer = playerCenter - (transform.position + Vector3.up);
         float distance = directionToPlayer.magnitude;
@@ -227,24 +240,13 @@ public class EnemyAI : MonoBehaviour
             Target.GetComponent<ThirdPersonController>()?.TakeDamage(damage);
     }
 
-    private void OnAnimatorMove()
-    {
-        if (!m_Animator.GetBool("isAttacking"))
-            m_Agent.speed = (m_Animator.deltaPosition / Time.deltaTime).magnitude;
-    }
-
-    // ─────────────────────────────────────────────
-    //  GIZMOS — visualización en el Editor
-    // ─────────────────────────────────────────────
     private void OnDrawGizmosSelected()
     {
         if (!DrawGizmos) return;
 
-        // Radio de escucha (amarillo)
         Gizmos.color = new Color(1f, 1f, 0f, 0.2f);
         Gizmos.DrawSphere(transform.position, HearingRadius);
 
-        // Radio de detección visual (rojo)
         Gizmos.color = new Color(1f, 0f, 0f, 0.15f);
         Gizmos.DrawSphere(transform.position, DetectionDistance);
     }

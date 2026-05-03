@@ -3,7 +3,7 @@
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 #endif
-
+using UnityEngine.AI;
 namespace StarterAssets
 {
     [RequireComponent(typeof(CharacterController))]
@@ -14,6 +14,7 @@ namespace StarterAssets
     {
         [Header("Player")]
         public float MoveSpeed = 2.0f;
+        private int _playerNavMeshArea;
 
         [Header("Noise / Sonido")]
         [SerializeField] private float sprintNoiseRadius = 12f;   // Radio que oyen los enemigos
@@ -25,7 +26,7 @@ namespace StarterAssets
         public float health;
         
         [SerializeField] private Slider healthSlider;
-
+        private NavMeshAgent _agent;
         [Header("Stamina")]
         [SerializeField] private float maxStamina = 100f;
         [SerializeField] private float stamina;
@@ -130,6 +131,14 @@ namespace StarterAssets
 
         private void Start()
         {    
+            _agent = GetComponent<NavMeshAgent>();
+
+            if (_agent != null)
+            {
+                _agent.updatePosition = false;
+                _agent.updateRotation = false;
+                _agent.Warp(transform.position);
+            }
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource == null)
             {
@@ -230,6 +239,11 @@ namespace StarterAssets
         private void OnDeath()
         {
             GameManager.Instance.Death();
+               EnemyAI[] enemies = FindObjectsOfType<EnemyAI>();
+        foreach (EnemyAI enemy in enemies)
+        {
+            enemy.ResetToStart();
+        }
         }
 
         private void UpdateHealthUI()
@@ -332,6 +346,7 @@ namespace StarterAssets
 
         private void Move()
         {
+            if (!_controller.enabled) return;
             bool isMoving = _input.move != Vector2.zero;
             bool isCrouching = _isCrouching;
 
@@ -377,8 +392,20 @@ namespace StarterAssets
 
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
-            _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
-                             new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+            Vector3 movement = targetDirection.normalized * (_speed * Time.deltaTime) +
+                               new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime;
+
+            Vector3 nextPosition = transform.position + movement;
+
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(nextPosition, out hit, 0.5f, NavMesh.AllAreas))
+            {
+                _controller.Move(movement);
+            }
+            else
+            {
+                _controller.Move(new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+            }
 
             if (_hasAnimator)
             {
