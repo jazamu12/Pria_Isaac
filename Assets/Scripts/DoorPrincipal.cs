@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class DoorPrincipal : MonoBehaviour
 {
@@ -38,9 +39,22 @@ public class DoorPrincipal : MonoBehaviour
         );
     }
 
+    private bool InteractPressed()
+    {
+        // Teclado: E
+        if (Input.GetKeyDown(KeyCode.E))
+            return true;
+
+        // Mando: Botón X (PlayStation) / A (Xbox) = botón 0
+        if (Input.GetKeyDown(KeyCode.JoystickButton2))
+            return true;
+
+        return false;
+    }
+
     private void Update()
     {
-        if (playerNear && Input.GetKeyDown(KeyCode.E) && !isOpen)
+        if (playerNear && InteractPressed() && !isOpen)
         {
             if (KeyManager.Instance.HasEnoughKeys(keysRequired))
             {

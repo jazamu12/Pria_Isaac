@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using StarterAssets;
 
 public class GameManager : MonoBehaviour
@@ -11,42 +12,71 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
     private void Start()
     {
+        Time.timeScale = 1f;
+
         _player = FindObjectOfType<ThirdPersonController>();
-        _spawnPosition = _player.transform.position;
-        DeathScreen.enabled = false;
+
+        if (_player != null)
+            _spawnPosition = _player.transform.position;
+
+        if (DeathScreen != null)
+            DeathScreen.enabled = false;
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.H)) _player.TakeDamage(10f);
-        if (Input.GetKeyDown(KeyCode.J)) _player.Heal(10f);
-        Retry();
+        // ── FIX: Solo escucha el input si la muerte screen está activa ──
+        if (DeathScreen != null && DeathScreen.enabled)
+        {
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.JoystickButton0))
+                Retry();
+        }
     }
 
     public void Death()
     {
-        DeathScreen.enabled = true;
+        if (DeathScreen != null)
+            DeathScreen.enabled = true;
+
         Time.timeScale = 0f;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         foreach (EnemyAI enemy in FindObjectsOfType<EnemyAI>())
             enemy.ResetToStart();
     }
 
     private void Retry()
     {
-        if (DeathScreen.enabled && Input.GetKeyDown(KeyCode.Return))
+        Time.timeScale = 1f;
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        // ── FIX: Refresca la referencia al jugador por si se perdió ──
+        if (_player == null)
+            _player = FindObjectOfType<ThirdPersonController>();
+
+        if (_player != null)
         {
-            Time.timeScale = 1f;
-
-            Vector3 checkpoint = CheckpointManager.Instance.GetCheckpoint(_spawnPosition);
-            _player.Respawn(checkpoint);  // ← el jugador se teletransporta a sí mismo
-
-            DeathScreen.enabled = false;
+            Vector3 checkpoint = CheckpointManager.GetOrCreate().GetCheckpoint(_spawnPosition);
+            _player.Respawn(checkpoint);
         }
+
+        if (DeathScreen != null)
+            DeathScreen.enabled = false;
     }
 }

@@ -8,6 +8,10 @@ public class PauseMenu : MonoBehaviour
 
     private void Start()
     {
+        Time.timeScale = 1f; // ── FIX: asegura que el tiempo corre al entrar a la escena
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
         pauseCanvas.enabled = false;
         optionsCanvas.enabled = false;
     }

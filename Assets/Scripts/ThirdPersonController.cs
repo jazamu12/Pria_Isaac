@@ -17,8 +17,8 @@ namespace StarterAssets
         private int _playerNavMeshArea;
 
         [Header("Noise / Sonido")]
-        [SerializeField] private float sprintNoiseRadius = 12f;   // Radio que oyen los enemigos
-        [SerializeField] private float sprintNoiseInterval = 0.4f; // Cada cuántos segundos emite ruido
+        [SerializeField] private float sprintNoiseRadius = 12f;
+        [SerializeField] private float sprintNoiseInterval = 0.4f;
         private float _noiseTimer = 0f;
 
         [Header("Health")]
@@ -27,6 +27,7 @@ namespace StarterAssets
         
         [SerializeField] private Slider healthSlider;
         private NavMeshAgent _agent;
+
         [Header("Stamina")]
         [SerializeField] private float maxStamina = 100f;
         [SerializeField] private float stamina;
@@ -34,10 +35,14 @@ namespace StarterAssets
         [SerializeField] private float staminaRecoverIdle = 25f;
         [SerializeField] private float staminaRecoverWalk = 10f;
         
+        [Header("Health Regen")]
+        [SerializeField] private float healthRegenDelay = 3f;
+        [SerializeField] private float healthRegenRate = 5f; // vida por segundo
+
+        private float _lastDamageTime;
         [Header("Crouch Settings")]
         [SerializeField] private float standingHeight = 1.8f;
         [SerializeField] private float crouchHeight = 1f;
-
         [SerializeField] private Vector3 standingCenter = new Vector3(0, 1f, 0);
         [SerializeField] private Vector3 crouchCenter = new Vector3(0, 0.5f, 0);
         
@@ -51,11 +56,14 @@ namespace StarterAssets
         private bool flashlightOn = false;
         private bool _isCrouching = false;
 
+        // Para evitar doble toggle con mando
+        private bool _flashlightButtonHeld = false;
+        private bool _crouchButtonHeld = false;
+
         public float SprintSpeed = 5.335f;
 
         [Range(0.0f, 0.3f)]
         public float RotationSmoothTime = 0.12f;
-
         public float SpeedChangeRate = 10.0f;
 
         public AudioClip LandingAudioClip;
@@ -81,14 +89,12 @@ namespace StarterAssets
 
         private float _cinemachineTargetYaw;
         private float _cinemachineTargetPitch;
-
         private float _speed;
         private float _animationBlend;
         private float _targetRotation = 0.0f;
         private float _rotationVelocity;
         private float _verticalVelocity;
         private float _terminalVelocity = 53.0f;
-
         private float _jumpTimeoutDelta;
         private float _fallTimeoutDelta;
 
@@ -98,7 +104,7 @@ namespace StarterAssets
         private int _animIDFreeFall;
         private int _animIDMotionSpeed;
         private int _animIDCrouch;
-        private AudioSource  _audioSource;
+        private AudioSource _audioSource;
 
 #if ENABLE_INPUT_SYSTEM 
         private PlayerInput _playerInput;
@@ -132,20 +138,17 @@ namespace StarterAssets
         private void Start()
         {    
             _agent = GetComponent<NavMeshAgent>();
-
             if (_agent != null)
             {
                 _agent.updatePosition = false;
                 _agent.updateRotation = false;
                 _agent.Warp(transform.position);
             }
+            _lastDamageTime = Time.time;
             _audioSource = GetComponent<AudioSource>();
             if (_audioSource == null)
-            {
                 _audioSource = gameObject.AddComponent<AudioSource>();
-            }
 
-            // Health
             health = maxHealth;
             if (healthSlider != null)
             {
@@ -153,7 +156,6 @@ namespace StarterAssets
                 healthSlider.value = health;
             }
 
-            // Stamina
             stamina = maxStamina;
             if (staminaSlider != null)
             {
@@ -162,7 +164,6 @@ namespace StarterAssets
             }
 
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
-
             _hasAnimator = TryGetComponent(out _animator);
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
@@ -172,7 +173,6 @@ namespace StarterAssets
 #endif
 
             AssignAnimationIDs();
-
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
         }
@@ -180,7 +180,7 @@ namespace StarterAssets
         private void Update()
         {
             _hasAnimator = TryGetComponent(out _animator);
-
+            HandleHealthRegen();
             HandleFlashlight();
             HandleCrouch();
             JumpAndGravity();
@@ -207,6 +207,7 @@ namespace StarterAssets
         }
 
         // ── HEALTH ────────────────────────────────────────────────────────────
+
         public void Respawn(Vector3 position)
         {
             StartCoroutine(DoRespawn(position));
@@ -215,22 +216,34 @@ namespace StarterAssets
         private System.Collections.IEnumerator DoRespawn(Vector3 position)
         {
             _controller.enabled = false;
-            yield return null;                    // 1 frame de margen
-            transform.position = position;        // funciona porque el CC está desactivado
+            yield return null;
+            transform.position = position;
             _controller.enabled = true;
-
             _verticalVelocity = 0f;
             health = maxHealth;
             stamina = maxStamina;
         }
+
         public void TakeDamage(float amount)
         {
             health = Mathf.Clamp(health - amount, 0f, maxHealth);
+            _lastDamageTime = Time.time; // reinicia temporizador de regeneración
             _audioSource.PlayOneShot(Hurt);
+
             if (health <= 0f)
                 OnDeath();
         }
+        private void HandleHealthRegen()
+        {
+            if (health <= 0f || health >= maxHealth)
+                return;
 
+            if (Time.time - _lastDamageTime >= healthRegenDelay)
+            {
+                health += healthRegenRate * Time.deltaTime;
+                health = Mathf.Clamp(health, 0f, maxHealth);
+            }
+        }
         public void Heal(float amount)
         {
             health = Mathf.Clamp(health + amount, 0f, maxHealth);
@@ -239,11 +252,9 @@ namespace StarterAssets
         private void OnDeath()
         {
             GameManager.Instance.Death();
-               EnemyAI[] enemies = FindObjectsOfType<EnemyAI>();
-        foreach (EnemyAI enemy in enemies)
-        {
-            enemy.ResetToStart();
-        }
+            EnemyAI[] enemies = FindObjectsOfType<EnemyAI>();
+            foreach (EnemyAI enemy in enemies)
+                enemy.ResetToStart();
         }
 
         private void UpdateHealthUI()
@@ -253,42 +264,47 @@ namespace StarterAssets
         }
 
         // ── FLASHLIGHT ────────────────────────────────────────────────────────
+        // Teclado: F  |  Mando: Y (Xbox) / Triángulo (PS) = JoystickButton3
 
         private void HandleFlashlight()
         {
-            if (Input.GetKeyDown(flashlightKey))
+            bool pressed = Input.GetKeyDown(flashlightKey)
+                        || Input.GetKeyDown(KeyCode.JoystickButton3);
+
+            if (pressed)
             {
                 flashlightOn = !flashlightOn;
                 if (flashlight != null)
                     flashlight.enabled = flashlightOn;
             }
         }
+
+        // ── STAMINA ───────────────────────────────────────────────────────────
+
         private void HandleStamina()
         {
             bool isMoving = _input.move != Vector2.zero;
             bool isSprinting = _input.sprint && isMoving && !_isCrouching;
 
             if (isSprinting)
-            {
                 stamina = Mathf.Clamp(stamina - staminaDrainSprint * Time.deltaTime, 0f, maxStamina);
-            }
             else if (!isMoving)
-            {
                 stamina = Mathf.Clamp(stamina + staminaRecoverIdle * Time.deltaTime, 0f, maxStamina);
-            }
             else
-            {
                 stamina = Mathf.Clamp(stamina + staminaRecoverWalk * Time.deltaTime, 0f, maxStamina);
-            }
         }
+
         // ── CROUCH ────────────────────────────────────────────────────────────
+        // Teclado: C  |  Mando: B (Xbox) / Círculo (PS) = JoystickButton1
 
         private void HandleCrouch()
         {
-            if (Input.GetKeyDown(KeyCode.C))
+            bool pressed = Input.GetKeyDown(KeyCode.C)
+                        || Input.GetKeyDown(KeyCode.JoystickButton1);
+
+            if (pressed)
                 _isCrouching = !_isCrouching;
 
-            // Cambiar tamaño del collider
             if (_isCrouching)
             {
                 _controller.height = crouchHeight;
@@ -303,6 +319,7 @@ namespace StarterAssets
             if (_hasAnimator)
                 _animator.SetBool(_animIDCrouch, _isCrouching);
         }
+
         // ── GROUNDED ──────────────────────────────────────────────────────────
 
         private void GroundedCheck()
@@ -347,16 +364,13 @@ namespace StarterAssets
         private void Move()
         {
             if (!_controller.enabled) return;
+
             bool isMoving = _input.move != Vector2.zero;
             bool isCrouching = _isCrouching;
-
             bool isSprinting = _input.sprint && stamina > 0f && isMoving && !isCrouching;
 
             float targetSpeed = isSprinting ? SprintSpeed : MoveSpeed;
-
-            if (isCrouching)
-                targetSpeed *= 0.5f;
-
+            if (isCrouching) targetSpeed *= 0.5f;
             if (_input.move == Vector2.zero) targetSpeed = 0.0f;
 
             float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
@@ -391,21 +405,15 @@ namespace StarterAssets
             }
 
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
-
             Vector3 movement = targetDirection.normalized * (_speed * Time.deltaTime) +
                                new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime;
 
             Vector3 nextPosition = transform.position + movement;
-
             NavMeshHit hit;
             if (NavMesh.SamplePosition(nextPosition, out hit, 0.5f, NavMesh.AllAreas))
-            {
                 _controller.Move(movement);
-            }
             else
-            {
                 _controller.Move(new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
-            }
 
             if (_hasAnimator)
             {
@@ -424,16 +432,15 @@ namespace StarterAssets
             }
             else
             {
-                _noiseTimer = 0f; // Resetea para que reaccione inmediatamente al volver a correr
+                _noiseTimer = 0f;
             }
         }
+
         private void EmitNoise(float radius)
         {
             Collider[] hits = Physics.OverlapSphere(transform.position, radius);
             foreach (Collider hit in hits)
-            {
                 hit.GetComponent<EnemyAI>()?.HearSound(transform.position);
-            }
         }
 
         // ── JUMP & GRAVITY ────────────────────────────────────────────────────
@@ -456,7 +463,6 @@ namespace StarterAssets
                 if (_input.jump && _jumpTimeoutDelta <= 0.0f && !_isCrouching)
                 {
                     _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
-
                     if (_hasAnimator)
                         _animator.SetBool(_animIDJump, true);
                 }
@@ -469,9 +475,7 @@ namespace StarterAssets
                 _jumpTimeoutDelta = JumpTimeout;
 
                 if (_fallTimeoutDelta >= 0.0f)
-                {
                     _fallTimeoutDelta -= Time.deltaTime;
-                }
                 else
                 {
                     if (_hasAnimator)
@@ -499,8 +503,7 @@ namespace StarterAssets
             Color transparentGreen = new Color(0.0f, 1.0f, 0.0f, 0.35f);
             Color transparentRed = new Color(1.0f, 0.0f, 0.0f, 0.35f);
 
-            if (Grounded) Gizmos.color = transparentGreen;
-            else Gizmos.color = transparentRed;
+            Gizmos.color = Grounded ? transparentGreen : transparentRed;
 
             Gizmos.DrawSphere(
                 new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z),

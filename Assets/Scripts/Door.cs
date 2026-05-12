@@ -35,13 +35,24 @@ namespace DoorScript
             if (open)
             {
                 var target = Quaternion.Euler(0, DoorOpenAngle, 0);
-                transform.localRotation = Quaternion.Slerp(transform.localRotation, target, Time.deltaTime * 5 * smooth);
+                transform.localRotation = Quaternion.Slerp(
+                    transform.localRotation,
+                    target,
+                    Time.deltaTime * 5 * smooth
+                );
             }
 
             if (_player == null) return;
 
             float dist = Vector3.Distance(transform.position, _player.position);
-            if (!open && dist <= interactDistance && Input.GetKeyDown(KeyCode.E))
+
+            // Teclado: E
+            bool keyboardInput = Input.GetKeyDown(KeyCode.E);
+
+            // PlayStation: Cuadrado / Xbox: X
+            bool controllerInput = Input.GetKeyDown(KeyCode.JoystickButton2);
+
+            if (!open && dist <= interactDistance && (keyboardInput || controllerInput))
                 OpenDoor();
         }
 

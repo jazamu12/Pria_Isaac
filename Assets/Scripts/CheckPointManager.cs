@@ -7,11 +7,23 @@ public class CheckpointManager : MonoBehaviour
     private Vector3 _lastCheckpoint;
     private bool _hasCheckpoint = false;
 
+    // ── FIX: Si no existe en la escena, lo crea automáticamente ──
+    public static CheckpointManager GetOrCreate()
+    {
+        if (Instance == null)
+        {
+            GameObject obj = new GameObject("CheckpointManager");
+            obj.AddComponent<CheckpointManager>();
+        }
+        return Instance;
+    }
+
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
+            transform.SetParent(null);
             DontDestroyOnLoad(gameObject);
         }
         else
